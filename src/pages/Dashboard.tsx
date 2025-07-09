@@ -158,17 +158,21 @@ export default function Dashboard() {
               </div>
               {user?.role === 'admin' && (
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/users'}>
                     <Users className="h-4 w-4 mr-2" />
                     Usuários
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/reports'}>
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Relatórios
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/settings'}>
                     <Settings className="h-4 w-4 mr-2" />
                     Configurações
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/collaborators'}>
+                    <Users className="h-4 w-4 mr-2" />
+                    Colaboradores
                   </Button>
                 </div>
               )}

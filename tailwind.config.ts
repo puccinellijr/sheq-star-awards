@@ -61,6 +61,13 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Odfjell brand colors
+				odfjell: {
+					blue: 'hsl(217 65% 20%)',
+					yellow: 'hsl(47 100% 50%)',
+					red: 'hsl(0 65% 48%)',
+					'light-gray': 'hsl(217 12% 95%)'
 				}
 			},
 			borderRadius: {

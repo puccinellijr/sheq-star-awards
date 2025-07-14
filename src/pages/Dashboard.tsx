@@ -3,6 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCollaborators } from "@/hooks/useCollaborators";
 import { useVotes } from "@/hooks/useVotes";
 import { useVotingPeriods } from "@/hooks/useVotingPeriods";
+import { useResults } from "@/hooks/useResults";
+import { useCertificateGenerator } from "@/hooks/useCertificateGenerator";
 import { VotingCard } from "@/components/dashboard/VotingCard";
 import { WinnersCard } from "@/components/dashboard/WinnersCard";
 import { VotingForm } from "@/components/voting/VotingForm";
@@ -17,14 +19,22 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { collaborators } = useCollaborators();
-  const { votes, submitVote, hasUserVoted } = useVotes();
+  const { votes, submitVote } = useVotes();
   const { getActivePeriod } = useVotingPeriods();
+  const { getResultByMonth } = useResults();
+  const { generateCertificate } = useCertificateGenerator();
   const [showVotingForm, setShowVotingForm] = useState(false);
-  const [currentResult, setCurrentResult] = useState<MonthlyResult | null>(null);
   
   const activePeriod = getActivePeriod();
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-  const hasVoted = user ? hasUserVoted(user.id, '', currentMonth) : false;
+  const currentResult = getResultByMonth(activePeriod?.month || currentMonth);
+  
+  // Check if user has voted this month by looking for votes for both funcionario and terceirizado
+  const hasVoted = user && activePeriod ? 
+    votes.some(v => 
+      v.voterId === user.id && 
+      v.month === activePeriod.month
+    ) : false;
 
   const handleVote = async (voteData: {
     funcionario: { collaboratorId: string; answers: boolean[] };
@@ -78,11 +88,8 @@ export default function Dashboard() {
   };
 
   const handleGenerateCertificate = (collaboratorId: string, type: 'funcionario' | 'terceirizado') => {
-    // Em produção, aqui seria gerada uma imagem de certificado
-    toast({
-      title: "Certificado gerado!",
-      description: "O certificado foi gerado e está pronto para download.",
-    });
+    const month = activePeriod?.month || currentMonth;
+    generateCertificate(collaboratorId, type, month);
   };
 
   if (showVotingForm) {

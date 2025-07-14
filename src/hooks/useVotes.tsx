@@ -147,10 +147,10 @@ export function useVotes() {
     return votes.filter(v => v.collaboratorId === collaboratorId);
   };
 
-  const hasUserVoted = (userId: string, collaboratorId: string, month: string) => {
+  const hasUserVoted = (userId: string, month: string) => {
+    // Check if user has voted in the specified month (for any collaborator)
     return votes.some(v => 
       v.voterId === userId && 
-      v.collaboratorId === collaboratorId && 
       v.month === month
     );
   };

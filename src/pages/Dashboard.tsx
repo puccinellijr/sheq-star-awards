@@ -29,7 +29,7 @@ export default function Dashboard() {
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
   const currentResult = getResultByMonth(activePeriod?.month || currentMonth);
   
-  // Check if user has voted this month by looking for votes for both funcionario and terceirizado
+  // Check if user has voted this month by looking for any vote from user in the active period
   const hasVoted = user && activePeriod ? 
     votes.some(v => 
       v.voterId === user.id && 

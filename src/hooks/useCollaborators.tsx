@@ -1,87 +1,174 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Collaborator } from "@/types";
-
-// Mock data inicial
-const INITIAL_COLLABORATORS: Collaborator[] = [
-  {
-    id: "1",
-    name: "Ezequel Froner",
-    department: "SHEQ",
-    type: "funcionario",
-    createdAt: new Date()
-  },
-  {
-    id: "2",
-    name: "Carlos Silva Santos",
-    department: "Operações",
-    type: "funcionario",
-    createdAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Jacenir Pacheco Machado",
-    department: "Manutenção",
-    type: "terceirizado",
-    company: "Gocil",
-    createdAt: new Date()
-  },
-  {
-    id: "4",
-    name: "Roberto Oliveira Lima",
-    department: "Segurança",
-    type: "terceirizado",
-    company: "Securitas",
-    createdAt: new Date()
-  }
-];
+import { useToast } from "@/hooks/use-toast";
 
 export function useCollaborators() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simular carregamento de dados
-    const loadCollaborators = () => {
-      const saved = localStorage.getItem('collaborators');
-      if (saved) {
-        setCollaborators(JSON.parse(saved));
-      } else {
-        setCollaborators(INITIAL_COLLABORATORS);
-        localStorage.setItem('collaborators', JSON.stringify(INITIAL_COLLABORATORS));
-      }
-      setIsLoading(false);
-    };
-
-    setTimeout(loadCollaborators, 300);
+    loadCollaborators();
   }, []);
 
-  const saveCollaborators = (newCollaborators: Collaborator[]) => {
-    setCollaborators(newCollaborators);
-    localStorage.setItem('collaborators', JSON.stringify(newCollaborators));
+  const loadCollaborators = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('collaborators')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        toast({
+          title: "Erro ao carregar colaboradores",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedData: Collaborator[] = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        department: item.department,
+        type: item.type as 'funcionario' | 'terceirizado',
+        company: item.company,
+        photo: item.photo,
+        createdAt: new Date(item.created_at)
+      }));
+
+      setCollaborators(formattedData);
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar colaboradores",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const addCollaborator = (collaborator: Omit<Collaborator, 'id' | 'createdAt'>) => {
-    const newCollaborator: Collaborator = {
-      ...collaborator,
-      id: Date.now().toString(),
-      createdAt: new Date()
-    };
-    
-    const updated = [...collaborators, newCollaborator];
-    saveCollaborators(updated);
-    return newCollaborator;
+  const addCollaborator = async (collaborator: Omit<Collaborator, 'id' | 'createdAt'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('collaborators')
+        .insert([{
+          name: collaborator.name,
+          department: collaborator.department,
+          type: collaborator.type,
+          company: collaborator.company,
+          photo: collaborator.photo
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        toast({
+          title: "Erro ao adicionar colaborador",
+          description: error.message,
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const newCollaborator: Collaborator = {
+        id: data.id,
+        name: data.name,
+        department: data.department,
+        type: data.type as 'funcionario' | 'terceirizado',
+        company: data.company,
+        photo: data.photo,
+        createdAt: new Date(data.created_at)
+      };
+
+      setCollaborators(prev => [...prev, newCollaborator]);
+      
+      toast({
+        title: "Colaborador adicionado",
+        description: `${newCollaborator.name} foi adicionado com sucesso.`,
+      });
+
+      return newCollaborator;
+    } catch (error) {
+      toast({
+        title: "Erro ao adicionar colaborador",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+      return null;
+    }
   };
 
-  const updateCollaborator = (id: string, updates: Partial<Collaborator>) => {
-    const updated = collaborators.map(c => 
-      c.id === id ? { ...c, ...updates } : c
-    );
-    saveCollaborators(updated);
+  const updateCollaborator = async (id: string, updates: Partial<Collaborator>) => {
+    try {
+      const { error } = await supabase
+        .from('collaborators')
+        .update({
+          name: updates.name,
+          department: updates.department,
+          type: updates.type,
+          company: updates.company,
+          photo: updates.photo
+        })
+        .eq('id', id);
+
+      if (error) {
+        toast({
+          title: "Erro ao atualizar colaborador",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCollaborators(prev => 
+        prev.map(c => c.id === id ? { ...c, ...updates } : c)
+      );
+
+      toast({
+        title: "Colaborador atualizado",
+        description: "Dados atualizados com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar colaborador",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    }
   };
 
-  const deleteCollaborator = (id: string) => {
-    const updated = collaborators.filter(c => c.id !== id);
-    saveCollaborators(updated);
+  const deleteCollaborator = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('collaborators')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        toast({
+          title: "Erro ao excluir colaborador",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCollaborators(prev => prev.filter(c => c.id !== id));
+      
+      toast({
+        title: "Colaborador excluído",
+        description: "Colaborador removido com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir colaborador",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    }
   };
 
   const getCollaboratorsByType = (type: 'funcionario' | 'terceirizado') => {
@@ -94,6 +181,7 @@ export function useCollaborators() {
     addCollaborator,
     updateCollaborator,
     deleteCollaborator,
-    getCollaboratorsByType
+    getCollaboratorsByType,
+    reload: loadCollaborators
   };
 }

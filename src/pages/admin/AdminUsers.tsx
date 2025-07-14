@@ -13,7 +13,7 @@ import { Plus, Search, Edit, Trash2, Users, Shield } from "lucide-react";
 import { User } from "@/types";
 
 export default function AdminUsers() {
-  const { users, isLoading, addUser, updateUser, deleteUser } = useUsers();
+  const { users, isLoading, updateUser, deleteUser } = useUsers();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "gestor">("all");
@@ -77,10 +77,11 @@ export default function AdminUsers() {
         description: "Usuário atualizado com sucesso!"
       });
     } else {
-      addUser(formData);
+      // New users need to be created through auth signup, not directly here
       toast({
-        title: "Sucesso",
-        description: "Usuário adicionado com sucesso!"
+        title: "Aviso",
+        description: "Novos usuários devem se registrar através do sistema de autenticação.",
+        variant: "destructive"
       });
     }
 
@@ -142,8 +143,8 @@ export default function AdminUsers() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Usuário
+                <Edit className="mr-2 h-4 w-4" />
+                Editar Usuário
               </Button>
             </DialogTrigger>
             <DialogContent>

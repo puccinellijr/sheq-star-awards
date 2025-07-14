@@ -1,119 +1,80 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCollaborators } from "@/hooks/useCollaborators";
+import { useVotes } from "@/hooks/useVotes";
+import { useVotingPeriods } from "@/hooks/useVotingPeriods";
 import { VotingCard } from "@/components/dashboard/VotingCard";
 import { WinnersCard } from "@/components/dashboard/WinnersCard";
 import { VotingForm } from "@/components/voting/VotingForm";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, BarChart3, Users, Settings } from "lucide-react";
-import { Collaborator, Vote, VotingPeriod, MonthlyResult } from "@/types";
-
-// Mock data para demonstração
-const MOCK_COLLABORATORS: Collaborator[] = [
-  {
-    id: "1",
-    name: "Ezequel Froner",
-    department: "SHEQ",
-    type: "funcionario",
-    createdAt: new Date()
-  },
-  {
-    id: "2",
-    name: "Carlos Silva Santos",
-    department: "Operações",
-    type: "funcionario",
-    createdAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Jacenir Pacheco Machado",
-    department: "Manutenção",
-    type: "terceirizado",
-    company: "Gocil",
-    createdAt: new Date()
-  },
-  {
-    id: "4",
-    name: "Roberto Oliveira Lima",
-    department: "Segurança",
-    type: "terceirizado",
-    company: "Securitas",
-    createdAt: new Date()
-  }
-];
-
-const MOCK_VOTING_PERIOD: VotingPeriod = {
-  id: "1",
-  month: "2024-01",
-  startDate: new Date(2024, 0, 1),
-  endDate: new Date(2024, 0, 25),
-  isActive: true,
-  isFinalized: false
-};
+import { LogOut } from "lucide-react";
+import { Vote, MonthlyResult } from "@/types";
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const { collaborators } = useCollaborators();
+  const { votes, submitVote, hasUserVoted } = useVotes();
+  const { getActivePeriod } = useVotingPeriods();
   const [showVotingForm, setShowVotingForm] = useState(false);
-  const [votes, setVotes] = useState<Vote[]>([]);
-  const [hasVoted, setHasVoted] = useState(false);
   const [currentResult, setCurrentResult] = useState<MonthlyResult | null>(null);
+  
+  const activePeriod = getActivePeriod();
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+  const hasVoted = user ? hasUserVoted(user.id, '', currentMonth) : false;
 
-  useEffect(() => {
-    // Verificar se o usuário já votou neste mês
-    const userVote = votes.find(v => 
-      v.voterId === user?.id && 
-      v.month === MOCK_VOTING_PERIOD.month
-    );
-    setHasVoted(!!userVote);
-  }, [votes, user?.id]);
-
-  const handleVote = (voteData: {
+  const handleVote = async (voteData: {
     funcionario: { collaboratorId: string; answers: boolean[] };
     terceirizado: { collaboratorId: string; answers: boolean[] };
   }) => {
-    if (!user) return;
+    if (!user || !activePeriod) return;
 
-    const funcionarioCollab = MOCK_COLLABORATORS.find(c => c.id === voteData.funcionario.collaboratorId);
-    const terceiroCollab = MOCK_COLLABORATORS.find(c => c.id === voteData.terceirizado.collaboratorId);
+    const funcionarioCollab = collaborators.find(c => c.id === voteData.funcionario.collaboratorId);
+    const terceiroCollab = collaborators.find(c => c.id === voteData.terceirizado.collaboratorId);
 
     if (!funcionarioCollab || !terceiroCollab) return;
 
-    const newVotes: Vote[] = [
-      {
-        id: `vote-${Date.now()}-func`,
+    try {
+      // Submit votes for both funcionario and terceirizado
+      const funcionarioVote = await submitVote({
         voterId: user.id,
         voterName: user.name,
         collaboratorId: funcionarioCollab.id,
         collaboratorName: funcionarioCollab.name,
         collaboratorType: 'funcionario',
-        month: MOCK_VOTING_PERIOD.month,
+        month: activePeriod.month,
         answers: voteData.funcionario.answers,
-        totalYes: voteData.funcionario.answers.filter(a => a).length,
-        createdAt: new Date()
-      },
-      {
-        id: `vote-${Date.now()}-terc`,
+        totalYes: voteData.funcionario.answers.filter(a => a).length
+      });
+
+      const terceiroVote = await submitVote({
         voterId: user.id,
         voterName: user.name,
         collaboratorId: terceiroCollab.id,
         collaboratorName: terceiroCollab.name,
         collaboratorType: 'terceirizado',
-        month: MOCK_VOTING_PERIOD.month,
+        month: activePeriod.month,
         answers: voteData.terceirizado.answers,
-        totalYes: voteData.terceirizado.answers.filter(a => a).length,
-        createdAt: new Date()
-      }
-    ];
+        totalYes: voteData.terceirizado.answers.filter(a => a).length
+      });
 
-    setVotes(prev => [...prev, ...newVotes]);
-    setShowVotingForm(false);
-    
-    toast({
-      title: "Voto registrado com sucesso!",
-      description: "Obrigado por participar da votação SHEQ deste mês.",
-    });
+      if (funcionarioVote && terceiroVote) {
+        setShowVotingForm(false);
+        toast({
+          title: "Voto registrado com sucesso!",
+          description: "Obrigado por participar da votação SHEQ deste mês.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao registrar voto",
+        description: "Ocorreu um erro. Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleGenerateCertificate = (collaboratorId: string, type: 'funcionario' | 'terceirizado') => {
@@ -136,7 +97,7 @@ export default function Dashboard() {
           </div>
         </div>
         <VotingForm
-          collaborators={MOCK_COLLABORATORS}
+          collaborators={collaborators}
           onSubmitVote={handleVote}
           onCancel={() => setShowVotingForm(false)}
         />
@@ -144,6 +105,63 @@ export default function Dashboard() {
     );
   }
 
+  // Use AdminLayout for consistent navigation for admins
+  if (user?.role === 'admin') {
+    return (
+      <AdminLayout title="Dashboard">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Votação */}
+            <VotingCard
+              isVotingActive={activePeriod?.isActive || false}
+              hasVoted={hasVoted}
+              votingPeriod={{
+                startDate: activePeriod?.startDate || new Date(),
+                endDate: activePeriod?.endDate || new Date()
+              }}
+              onVote={() => setShowVotingForm(true)}
+            />
+
+            {/* Vencedores */}
+            <WinnersCard
+              currentResult={currentResult}
+              month={activePeriod?.month || currentMonth}
+              onGenerateCertificate={handleGenerateCertificate}
+            />
+          </div>
+
+          {/* Estatísticas da Votação */}
+          {votes.length > 0 && (
+            <div className="bg-card rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4">Estatísticas da Votação Atual</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-primary/5 rounded-lg">
+                  <p className="text-2xl font-bold text-primary">
+                    {votes.filter(v => v.month === currentMonth).length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Total de Votos</p>
+                </div>
+                <div className="text-center p-4 bg-accent/5 rounded-lg">
+                  <p className="text-2xl font-bold text-accent-foreground">
+                    {new Set(votes.filter(v => v.month === currentMonth).map(v => v.voterId)).size}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Gestores Votaram</p>
+                </div>
+                <div className="text-center p-4 bg-destructive/5 rounded-lg">
+                  <p className="text-2xl font-bold text-destructive">
+                    {activePeriod ? Math.max(0, Math.ceil((activePeriod.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Dias Restantes</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Regular dashboard for gestores
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -156,27 +174,7 @@ export default function Dashboard() {
                 <p className="font-medium">{user?.name}</p>
                 <p className="text-sm text-muted-foreground">{user?.department}</p>
               </div>
-              {user?.role === 'admin' && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/users'}>
-                    <Users className="h-4 w-4 mr-2" />
-                    Usuários
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/reports'}>
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Relatórios
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/settings'}>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Configurações
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/collaborators'}>
-                    <Users className="h-4 w-4 mr-2" />
-                    Colaboradores
-                  </Button>
-                </div>
-              )}
-              <Button variant="outline" onClick={logout}>
+              <Button variant="outline" onClick={() => window.location.href = '/auth'}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </Button>
@@ -190,11 +188,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Votação */}
           <VotingCard
-            isVotingActive={MOCK_VOTING_PERIOD.isActive}
+            isVotingActive={activePeriod?.isActive || false}
             hasVoted={hasVoted}
             votingPeriod={{
-              startDate: MOCK_VOTING_PERIOD.startDate,
-              endDate: MOCK_VOTING_PERIOD.endDate
+              startDate: activePeriod?.startDate || new Date(),
+              endDate: activePeriod?.endDate || new Date()
             }}
             onVote={() => setShowVotingForm(true)}
           />
@@ -202,39 +200,10 @@ export default function Dashboard() {
           {/* Vencedores */}
           <WinnersCard
             currentResult={currentResult}
-            month={MOCK_VOTING_PERIOD.month}
+            month={activePeriod?.month || currentMonth}
             onGenerateCertificate={handleGenerateCertificate}
           />
         </div>
-
-        {/* Estatísticas da Votação */}
-        {user?.role === 'admin' && votes.length > 0 && (
-          <div className="mt-8">
-            <div className="bg-card rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4">Estatísticas da Votação Atual</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-primary/5 rounded-lg">
-                  <p className="text-2xl font-bold text-primary">
-                    {votes.filter(v => v.month === MOCK_VOTING_PERIOD.month).length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Total de Votos</p>
-                </div>
-                <div className="text-center p-4 bg-accent/5 rounded-lg">
-                  <p className="text-2xl font-bold text-accent-foreground">
-                    {new Set(votes.filter(v => v.month === MOCK_VOTING_PERIOD.month).map(v => v.voterId)).size}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Gestores Votaram</p>
-                </div>
-                <div className="text-center p-4 bg-destructive/5 rounded-lg">
-                  <p className="text-2xl font-bold text-destructive">
-                    {Math.ceil((new Date(MOCK_VOTING_PERIOD.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Dias Restantes</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

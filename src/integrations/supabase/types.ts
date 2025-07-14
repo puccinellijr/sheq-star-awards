@@ -14,7 +14,209 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      collaborators: {
+        Row: {
+          company: string | null
+          created_at: string
+          department: string
+          id: string
+          name: string
+          photo: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          department: string
+          id?: string
+          name: string
+          photo?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          name?: string
+          photo?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      monthly_results: {
+        Row: {
+          created_at: string
+          funcionario_is_tie_breaker: boolean | null
+          funcionario_total_votes: number | null
+          funcionario_total_yes: number | null
+          funcionario_winner_id: string | null
+          id: string
+          month: string
+          terceiro_is_tie_breaker: boolean | null
+          terceiro_total_votes: number | null
+          terceiro_total_yes: number | null
+          terceiro_winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          funcionario_is_tie_breaker?: boolean | null
+          funcionario_total_votes?: number | null
+          funcionario_total_yes?: number | null
+          funcionario_winner_id?: string | null
+          id?: string
+          month: string
+          terceiro_is_tie_breaker?: boolean | null
+          terceiro_total_votes?: number | null
+          terceiro_total_yes?: number | null
+          terceiro_winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          funcionario_is_tie_breaker?: boolean | null
+          funcionario_total_votes?: number | null
+          funcionario_total_yes?: number | null
+          funcionario_winner_id?: string | null
+          id?: string
+          month?: string
+          terceiro_is_tie_breaker?: boolean | null
+          terceiro_total_votes?: number | null
+          terceiro_total_yes?: number | null
+          terceiro_winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_results_funcionario_winner_id_fkey"
+            columns: ["funcionario_winner_id"]
+            isOneToOne: false
+            referencedRelation: "collaborators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_results_terceiro_winner_id_fkey"
+            columns: ["terceiro_winner_id"]
+            isOneToOne: false
+            referencedRelation: "collaborators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          department: string | null
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department?: string | null
+          email: string
+          id?: string
+          name: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string | null
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          answers: boolean[]
+          collaborator_id: string
+          collaborator_name: string
+          collaborator_type: string
+          created_at: string
+          id: string
+          month: string
+          total_yes: number
+          voter_id: string
+          voter_name: string
+        }
+        Insert: {
+          answers: boolean[]
+          collaborator_id: string
+          collaborator_name: string
+          collaborator_type: string
+          created_at?: string
+          id?: string
+          month: string
+          total_yes: number
+          voter_id: string
+          voter_name: string
+        }
+        Update: {
+          answers?: boolean[]
+          collaborator_id?: string
+          collaborator_name?: string
+          collaborator_type?: string
+          created_at?: string
+          id?: string
+          month?: string
+          total_yes?: number
+          voter_id?: string
+          voter_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_collaborator_id_fkey"
+            columns: ["collaborator_id"]
+            isOneToOne: false
+            referencedRelation: "collaborators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voting_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_active: boolean
+          is_finalized: boolean
+          month: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          is_finalized?: boolean
+          month: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          is_finalized?: boolean
+          month?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,79 +1,112 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import type { ReactNode } from "react";
+import { User as AuthUser, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users para demonstração
-const MOCK_USERS: User[] = [
-  {
-    id: "1",
-    name: "Admin Sistema",
-    email: "admin@odfjell.com",
-    role: "admin",
-    department: "TI",
-    createdAt: new Date()
-  },
-  {
-    id: "2", 
-    name: "José Francisco Avilla Puccinelli Jr.",
-    email: "jose.puccinelli@odfjell.com",
-    role: "gestor",
-    department: "TI e Automação",
-    createdAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Maria Silva Santos",
-    email: "maria.santos@odfjell.com", 
-    role: "gestor",
-    department: "Operações",
-    createdAt: new Date()
-  }
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("auth-user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user profile from our profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (profile) {
+            setUser({
+              id: profile.user_id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role as 'admin' | 'gestor',
+              department: profile.department,
+              createdAt: new Date(profile.created_at)
+            });
+          }
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // onAuthStateChange will handle the session
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    
-    const foundUser = MOCK_USERS.find(u => u.email === email);
-    
-    if (foundUser && password === "123456") {
-      setUser(foundUser);
-      localStorage.setItem("auth-user", JSON.stringify(foundUser));
-      setIsLoading(false);
-      return true;
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: "Erro ao fazer login" };
     }
-    
-    setIsLoading(false);
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("auth-user");
+  const signup = async (email: string, password: string, name: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: name
+          }
+        }
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: "Erro ao criar conta" };
+    }
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, session, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

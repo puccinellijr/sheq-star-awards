@@ -1,81 +1,121 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
-
-// Mock data inicial (users já existentes do auth)
-const INITIAL_USERS: User[] = [
-  {
-    id: "1",
-    name: "Admin Sistema",
-    email: "admin@odfjell.com",
-    role: "admin",
-    department: "TI",
-    createdAt: new Date()
-  },
-  {
-    id: "2", 
-    name: "José Francisco Avilla Puccinelli Jr.",
-    email: "jose.puccinelli@odfjell.com",
-    role: "gestor",
-    department: "TI e Automação",
-    createdAt: new Date()
-  },
-  {
-    id: "3",
-    name: "Maria Silva Santos",
-    email: "maria.santos@odfjell.com", 
-    role: "gestor",
-    department: "Operações",
-    createdAt: new Date()
-  }
-];
+import { useToast } from "@/hooks/use-toast";
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simular carregamento de dados
-    const loadUsers = () => {
-      const saved = localStorage.getItem('users');
-      if (saved) {
-        setUsers(JSON.parse(saved));
-      } else {
-        setUsers(INITIAL_USERS);
-        localStorage.setItem('users', JSON.stringify(INITIAL_USERS));
-      }
-      setIsLoading(false);
-    };
-
-    setTimeout(loadUsers, 300);
+    loadUsers();
   }, []);
 
-  const saveUsers = (newUsers: User[]) => {
-    setUsers(newUsers);
-    localStorage.setItem('users', JSON.stringify(newUsers));
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        toast({
+          title: "Erro ao carregar usuários",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedData: User[] = data.map(item => ({
+        id: item.user_id,
+        name: item.name,
+        email: item.email,
+        role: item.role as 'admin' | 'gestor',
+        department: item.department,
+        createdAt: new Date(item.created_at)
+      }));
+
+      setUsers(formattedData);
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar usuários",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const addUser = (user: Omit<User, 'id' | 'createdAt'>) => {
-    const newUser: User = {
-      ...user,
-      id: Date.now().toString(),
-      createdAt: new Date()
-    };
-    
-    const updated = [...users, newUser];
-    saveUsers(updated);
-    return newUser;
+  const updateUser = async (id: string, updates: Partial<User>) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: updates.name,
+          role: updates.role,
+          department: updates.department
+        })
+        .eq('user_id', id);
+
+      if (error) {
+        toast({
+          title: "Erro ao atualizar usuário",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUsers(prev => 
+        prev.map(u => u.id === id ? { ...u, ...updates } : u)
+      );
+
+      toast({
+        title: "Usuário atualizado",
+        description: "Dados atualizados com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao atualizar usuário",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    }
   };
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    const updated = users.map(u => 
-      u.id === id ? { ...u, ...updates } : u
-    );
-    saveUsers(updated);
-  };
+  const deleteUser = async (id: string) => {
+    try {
+      // Note: This will also delete from auth.users due to foreign key constraints
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', id);
 
-  const deleteUser = (id: string) => {
-    const updated = users.filter(u => u.id !== id);
-    saveUsers(updated);
+      if (error) {
+        toast({
+          title: "Erro ao excluir usuário",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUsers(prev => prev.filter(u => u.id !== id));
+      
+      toast({
+        title: "Usuário excluído",
+        description: "Usuário removido com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir usuário",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+    }
   };
 
   const getUsersByRole = (role: 'admin' | 'gestor') => {
@@ -85,9 +125,9 @@ export function useUsers() {
   return {
     users,
     isLoading,
-    addUser,
     updateUser,
     deleteUser,
-    getUsersByRole
+    getUsersByRole,
+    reload: loadUsers
   };
 }

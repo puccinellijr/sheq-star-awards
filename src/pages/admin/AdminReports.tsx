@@ -61,9 +61,9 @@ export default function AdminReports() {
     return getResultByMonth(selectedMonth);
   }, [getResultByMonth, selectedMonth]);
 
-  // Calculate statistics
-  const totalGestores = useMemo(() => {
-    return users.filter(user => user.role === 'gestor').length;
+  // Calculate statistics - Include both admins and gestores as valid voters
+  const totalVotantes = useMemo(() => {
+    return users.filter(user => user.role === 'gestor' || user.role === 'admin').length;
   }, [users]);
 
   const votedGestores = useMemo(() => {
@@ -71,27 +71,27 @@ export default function AdminReports() {
     return uniqueVoters.size;
   }, [monthlyVotes]);
 
-  const pendingGestores = totalGestores - votedGestores;
-  const participationRate = totalGestores > 0 ? Math.round((votedGestores / totalGestores) * 100) : 0;
+  const pendingGestores = totalVotantes - votedGestores;
+  const participationRate = totalVotantes > 0 ? Math.round((votedGestores / totalVotantes) * 100) : 0;
 
-  // Calculate voting status for each manager
+  // Calculate voting status for each manager - Include both admins and gestores
   const managersVotingStatus = useMemo(() => {
-    const gestores = users.filter(user => user.role === 'gestor');
+    const votantes = users.filter(user => user.role === 'gestor' || user.role === 'admin');
     const voterIds = new Set(monthlyVotes.map(vote => vote.voterId));
     
-    const voted = gestores
-      .filter(gestor => voterIds.has(gestor.id))
-      .map(gestor => {
-        const userVote = monthlyVotes.find(vote => vote.voterId === gestor.id);
+    const voted = votantes
+      .filter(votante => voterIds.has(votante.id))
+      .map(votante => {
+        const userVote = monthlyVotes.find(vote => vote.voterId === votante.id);
         return {
-          ...gestor,
+          ...votante,
           voteDate: userVote?.createdAt
         };
       })
       .sort((a, b) => new Date(b.voteDate).getTime() - new Date(a.voteDate).getTime());
     
-    const pending = gestores
-      .filter(gestor => !voterIds.has(gestor.id))
+    const pending = votantes
+      .filter(votante => !voterIds.has(votante.id))
       .sort((a, b) => a.name.localeCompare(b.name));
     
     return { voted, pending };
@@ -175,8 +175,8 @@ export default function AdminReports() {
     doc.text('Relatório de Votação', 20, 30);
     doc.setFontSize(14);
     doc.text(`Mês: ${availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth}`, 20, 50);
-    doc.text(`Total de Gestores: ${totalGestores}`, 20, 70);
-    doc.text(`Gestores que Votaram: ${votedGestores}`, 20, 90);
+    doc.text(`Total de Votantes: ${totalVotantes}`, 20, 70);
+    doc.text(`Votantes: ${votedGestores}`, 20, 90);
     doc.text(`Taxa de Participação: ${participationRate}%`, 20, 110);
     
     if (winners.funcionario) {
@@ -193,8 +193,8 @@ export default function AdminReports() {
     const data = [
       ['Relatório de Votação'],
       ['Mês', availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth],
-      ['Total de Gestores', totalGestores],
-      ['Gestores que Votaram', votedGestores],
+      ['Total de Votantes', totalVotantes],
+      ['Votantes', votedGestores],
       ['Taxa de Participação', `${participationRate}%`],
       [],
       ['Ranking Funcionários'],
@@ -274,11 +274,11 @@ export default function AdminReports() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Gestores</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Votantes</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalGestores}</div>
+              <div className="text-2xl font-bold">{totalVotantes}</div>
               <p className="text-xs text-muted-foreground">elegíveis para votar</p>
             </CardContent>
           </Card>
@@ -326,7 +326,7 @@ export default function AdminReports() {
                 <CardTitle>Gestores que Votaram</CardTitle>
               </div>
               <CardDescription>
-                {managersVotingStatus.voted.length} de {totalGestores} gestores já participaram
+                {managersVotingStatus.voted.length} de {totalVotantes} votantes já participaram
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -546,13 +546,13 @@ export default function AdminReports() {
                   {availableMonths.slice(0, 4).map((month) => {
                     const monthVotes = votes.filter(vote => vote.month === month.value);
                     const uniqueVoters = new Set(monthVotes.map(vote => vote.voterId));
-                    const monthParticipation = totalGestores > 0 ? Math.round((uniqueVoters.size / totalGestores) * 100) : 0;
+                    const monthParticipation = totalVotantes > 0 ? Math.round((uniqueVoters.size / totalVotantes) * 100) : 0;
                     
                     return (
                       <div key={month.value} className="p-4 border rounded-lg">
                         <p className="font-semibold">{month.label}</p>
                         <p className="text-2xl font-bold text-primary">{monthParticipation}%</p>
-                        <p className="text-sm text-muted-foreground">{uniqueVoters.size}/{totalGestores} gestores</p>
+                        <p className="text-sm text-muted-foreground">{uniqueVoters.size}/{totalVotantes} votantes</p>
                       </div>
                     );
                   })}

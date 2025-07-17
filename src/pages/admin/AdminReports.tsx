@@ -169,24 +169,188 @@ export default function AdminReports() {
   };
 
   // Export functions
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text('Relatório de Votação', 20, 30);
-    doc.setFontSize(14);
-    doc.text(`Mês: ${availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth}`, 20, 50);
-    doc.text(`Total de Votantes: ${totalVotantes}`, 20, 70);
-    doc.text(`Votantes: ${votedGestores}`, 20, 90);
-    doc.text(`Taxa de Participação: ${participationRate}%`, 20, 110);
     
-    if (winners.funcionario) {
-      doc.text(`Vencedor Funcionário: ${winners.funcionario.name}`, 20, 140);
-    }
-    if (winners.terceirizado) {
-      doc.text(`Vencedor Terceirizado: ${winners.terceirizado.name}`, 20, 160);
+    // Convert logo to base64
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    
+    try {
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+        logoImg.src = '/lovable-uploads/69239e6b-598a-4828-8a9b-2f5f17031fda.png';
+      });
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = logoImg.width;
+      canvas.height = logoImg.height;
+      ctx?.drawImage(logoImg, 0, 0);
+      const logoBase64 = canvas.toDataURL('image/png');
+      
+      // Header with logo and title
+      doc.addImage(logoBase64, 'PNG', 20, 15, 40, 20);
+      
+      // Set colors (Odfjell brand colors)
+      const primaryBlue = [30, 58, 138]; // hsl(217 65% 20%)
+      const odfjellYellow = [251, 191, 36]; // hsl(47 100% 50%)
+      const lightGray = [241, 245, 249]; // hsl(217 12% 95%)
+      
+      // Title section
+      doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RELATÓRIO DE VOTAÇÃO', 70, 25);
+      
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'normal');
+      doc.text('DESTAQUE SHEQ', 70, 32);
+      
+      // Month and date info
+      doc.setFontSize(12);
+      doc.setTextColor(100, 100, 100);
+      const currentDate = new Date().toLocaleDateString('pt-BR');
+      doc.text(`Gerado em: ${currentDate}`, 140, 40);
+      
+      // Blue line separator
+      doc.setDrawColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+      doc.setLineWidth(2);
+      doc.line(20, 45, 190, 45);
+      
+      // Month section
+      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+      doc.rect(20, 55, 170, 15, 'F');
+      doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`MÊS: ${availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth}`, 25, 65);
+      
+      // Statistics section
+      let yPos = 85;
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ESTATÍSTICAS DE PARTICIPAÇÃO', 20, yPos);
+      yPos += 10;
+      
+      // Statistics cards
+      doc.setFont('helvetica', 'normal');
+      doc.setFillColor(255, 255, 255);
+      doc.rect(20, yPos, 40, 25, 'FD');
+      doc.rect(65, yPos, 40, 25, 'FD');
+      doc.rect(110, yPos, 40, 25, 'FD');
+      doc.rect(155, yPos, 35, 25, 'FD');
+      
+      // Statistics content
+      doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(totalVotantes.toString(), 35, yPos + 10);
+      doc.text(votedGestores.toString(), 80, yPos + 10);
+      doc.text(pendingGestores.toString(), 125, yPos + 10);
+      doc.text(`${participationRate}%`, 167, yPos + 10);
+      
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Total Votantes', 25, yPos + 18);
+      doc.text('Votaram', 75, yPos + 18);
+      doc.text('Pendentes', 115, yPos + 18);
+      doc.text('Participação', 160, yPos + 18);
+      
+      yPos += 40;
+      
+      // Winners section
+      if (winners.funcionario || winners.terceirizado) {
+        doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('VENCEDORES DO MÊS', 20, yPos);
+        yPos += 15;
+        
+        if (winners.funcionario) {
+          doc.setFillColor(odfjellYellow[0], odfjellYellow[1], odfjellYellow[2]);
+          doc.rect(20, yPos, 170, 12, 'F');
+          doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('🏆 FUNCIONÁRIO:', 25, yPos + 8);
+          doc.setFont('helvetica', 'normal');
+          doc.text(winners.funcionario.name, 75, yPos + 8);
+          yPos += 17;
+        }
+        
+        if (winners.terceirizado) {
+          doc.setFillColor(odfjellYellow[0], odfjellYellow[1], odfjellYellow[2]);
+          doc.rect(20, yPos, 170, 12, 'F');
+          doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.text('🏆 TERCEIRIZADO:', 25, yPos + 8);
+          doc.setFont('helvetica', 'normal');
+          doc.text(winners.terceirizado.name, 85, yPos + 8);
+          yPos += 17;
+        }
+      }
+      
+      // Detailed rankings
+      yPos += 10;
+      if (rankings.funcionarios.length > 0) {
+        doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('RANKING FUNCIONÁRIOS', 20, yPos);
+        yPos += 10;
+        
+        // Table header
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
+        doc.rect(20, yPos, 170, 8, 'F');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.text('Pos.', 25, yPos + 5);
+        doc.text('Nome', 40, yPos + 5);
+        doc.text('Votos', 120, yPos + 5);
+        doc.text('Sim', 140, yPos + 5);
+        doc.text('Taxa', 160, yPos + 5);
+        yPos += 8;
+        
+        // Rankings data
+        rankings.funcionarios.slice(0, 10).forEach((funcionario, index) => {
+          if (yPos > 250) return; // Page limit
+          const rate = funcionario.votes > 0 ? Math.round((funcionario.totalYes / funcionario.votes) * 100) : 0;
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(9);
+          doc.text(`${index + 1}º`, 25, yPos + 5);
+          doc.text(funcionario.name.substring(0, 25), 40, yPos + 5);
+          doc.text(funcionario.votes.toString(), 125, yPos + 5);
+          doc.text(funcionario.totalYes.toString(), 145, yPos + 5);
+          doc.text(`${rate}%`, 165, yPos + 5);
+          yPos += 7;
+        });
+      }
+      
+      // Footer
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.text('Odfjell Terminals - Granel Química Ltda.', 20, 280);
+      doc.text('Terminal Rio Grande', 20, 285);
+      doc.text('Sistema DESTAQUE SHEQ', 140, 280);
+      doc.text(`Página 1 de 1`, 140, 285);
+      
+    } catch (error) {
+      console.error('Erro ao carregar logo:', error);
+      // Fallback: Generate PDF without logo
+      doc.setTextColor(30, 58, 138);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RELATÓRIO DE VOTAÇÃO', 20, 30);
+      doc.setFontSize(14);
+      doc.text(`Mês: ${availableMonths.find(m => m.value === selectedMonth)?.label || selectedMonth}`, 20, 50);
     }
     
-    doc.save(`relatorio-${selectedMonth}.pdf`);
+    doc.save(`relatorio-destaque-sheq-${selectedMonth}.pdf`);
   };
 
   const handleExportExcel = () => {

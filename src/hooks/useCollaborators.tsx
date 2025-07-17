@@ -175,10 +175,63 @@ export function useCollaborators() {
     return collaborators.filter(c => c.type === type);
   };
 
+  const addMultipleCollaborators = async (collaborators: Omit<Collaborator, 'id' | 'createdAt'>[]) => {
+    try {
+      const insertData = collaborators.map(c => ({
+        name: c.name,
+        department: c.department,
+        type: c.type,
+        company: c.company,
+        photo: c.photo
+      }));
+
+      const { data, error } = await supabase
+        .from('collaborators')
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        toast({
+          title: "Erro ao importar colaboradores",
+          description: error.message,
+          variant: "destructive",
+        });
+        throw error;
+      }
+
+      const newCollaborators: Collaborator[] = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        department: item.department,
+        type: item.type as 'funcionario' | 'terceirizado',
+        company: item.company,
+        photo: item.photo,
+        createdAt: new Date(item.created_at)
+      }));
+
+      setCollaborators(prev => [...prev, ...newCollaborators]);
+      
+      toast({
+        title: "Colaboradores importados",
+        description: `${newCollaborators.length} colaboradores foram adicionados com sucesso.`,
+      });
+
+      return newCollaborators;
+    } catch (error) {
+      toast({
+        title: "Erro ao importar colaboradores",
+        description: "Erro inesperado durante a importação",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return {
     collaborators,
     isLoading,
     addCollaborator,
+    addMultipleCollaborators,
     updateCollaborator,
     deleteCollaborator,
     getCollaboratorsByType,

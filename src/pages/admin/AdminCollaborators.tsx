@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useCollaborators } from "@/hooks/useCollaborators";
+import { BatchImportDialog } from "@/components/admin/BatchImportDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,15 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Edit, Trash2, UserCheck, Building2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserCheck, Building2, Upload } from "lucide-react";
 import { Collaborator } from "@/types";
 
 export default function AdminCollaborators() {
-  const { collaborators, isLoading, addCollaborator, updateCollaborator, deleteCollaborator } = useCollaborators();
+  const { collaborators, isLoading, addCollaborator, addMultipleCollaborators, updateCollaborator, deleteCollaborator } = useCollaborators();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "funcionario" | "terceirizado">("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
   const [editingCollaborator, setEditingCollaborator] = useState<Collaborator | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -94,6 +96,11 @@ export default function AdminCollaborators() {
     }
   };
 
+  const handleBatchImport = async (collaborators: Omit<Collaborator, 'id' | 'createdAt'>[]) => {
+    await addMultipleCollaborators(collaborators);
+    setIsBatchImportOpen(false);
+  };
+
   if (isLoading) {
     return (
       <AdminLayout title="Colaboradores">
@@ -115,13 +122,19 @@ export default function AdminCollaborators() {
               Gerencie funcionários e terceirizados elegíveis para votação
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={resetForm}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Colaborador
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBatchImportOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              Importar Lote
+            </Button>
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={resetForm}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Novo Colaborador
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
@@ -198,7 +211,15 @@ export default function AdminCollaborators() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
+        {/* Batch Import Dialog */}
+        <BatchImportDialog
+          open={isBatchImportOpen}
+          onOpenChange={setIsBatchImportOpen}
+          onImport={handleBatchImport}
+        />
 
         {/* Filtros */}
         <div className="flex gap-4">

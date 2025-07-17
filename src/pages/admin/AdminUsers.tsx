@@ -13,7 +13,7 @@ import { Plus, Search, Edit, Trash2, Users, Shield } from "lucide-react";
 import { User } from "@/types";
 
 export default function AdminUsers() {
-  const { users, isLoading, updateUser, deleteUser } = useUsers();
+  const { users, isLoading, createUser, updateUser, deleteUser } = useUsers();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "gestor">("all");
@@ -22,6 +22,8 @@ export default function AdminUsers() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     role: "gestor" as "admin" | "gestor",
     department: ""
   });
@@ -38,13 +40,15 @@ export default function AdminUsers() {
     setFormData({
       name: "",
       email: "",
+      password: "",
+      confirmPassword: "",
       role: "gestor",
       department: ""
     });
     setEditingUser(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.email) {
@@ -54,6 +58,27 @@ export default function AdminUsers() {
         variant: "destructive"
       });
       return;
+    }
+
+    // Verificação específica para novos usuários
+    if (!editingUser) {
+      if (!formData.password || formData.password.length < 6) {
+        toast({
+          title: "Erro",
+          description: "Senha deve ter pelo menos 6 caracteres.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        toast({
+          title: "Erro",
+          description: "As senhas não coincidem.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     // Verificar e-mail duplicado
@@ -71,18 +96,22 @@ export default function AdminUsers() {
     }
 
     if (editingUser) {
-      updateUser(editingUser.id, formData);
-      toast({
-        title: "Sucesso",
-        description: "Usuário atualizado com sucesso!"
+      await updateUser(editingUser.id, {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        department: formData.department
       });
     } else {
-      // New users need to be created through auth signup, not directly here
-      toast({
-        title: "Aviso",
-        description: "Novos usuários devem se registrar através do sistema de autenticação.",
-        variant: "destructive"
+      const success = await createUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        department: formData.department
       });
+      
+      if (!success) return;
     }
 
     setIsDialogOpen(false);
@@ -94,6 +123,8 @@ export default function AdminUsers() {
     setFormData({
       name: user.name,
       email: user.email,
+      password: "",
+      confirmPassword: "",
       role: user.role,
       department: user.department || ""
     });
@@ -143,18 +174,21 @@ export default function AdminUsers() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={resetForm}>
-                <Edit className="mr-2 h-4 w-4" />
-                Editar Usuário
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Usuário
               </Button>
             </DialogTrigger>
             <DialogContent>
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
                   <DialogTitle>
-                    {editingUser ? "Editar Usuário" : "Novo Usuário"}
+                    {editingUser ? "Editar Usuário" : "Cadastrar Usuário"}
                   </DialogTitle>
                   <DialogDescription>
-                    Preencha as informações do usuário
+                    {editingUser 
+                      ? "Atualize as informações do usuário" 
+                      : "Preencha as informações para criar um novo usuário"
+                    }
                   </DialogDescription>
                 </DialogHeader>
                 
@@ -179,8 +213,39 @@ export default function AdminUsers() {
                       onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="email@odfjell.com"
                       required
+                      disabled={!!editingUser}
                     />
                   </div>
+                  
+                  {!editingUser && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="password">Senha</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Digite a senha"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={formData.confirmPassword}
+                          onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          placeholder="Confirme a senha"
+                          required
+                          minLength={6}
+                        />
+                      </div>
+                    </>
+                  )}
                   
                   <div className="grid gap-2">
                     <Label htmlFor="role">Função</Label>
@@ -216,7 +281,7 @@ export default function AdminUsers() {
                     Cancelar
                   </Button>
                   <Button type="submit">
-                    {editingUser ? "Atualizar" : "Adicionar"}
+                    {editingUser ? "Atualizar" : "Cadastrar"}
                   </Button>
                 </DialogFooter>
               </form>

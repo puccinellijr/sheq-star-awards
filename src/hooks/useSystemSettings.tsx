@@ -71,7 +71,7 @@ export const useSystemSettings = () => {
           key, 
           value: value,
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'key' });
 
       if (error) throw error;
 
@@ -101,7 +101,7 @@ export const useSystemSettings = () => {
 
       const { error } = await supabase
         .from('system_settings')
-        .upsert(updates);
+        .upsert(updates, { onConflict: 'key' });
 
       if (error) throw error;
 

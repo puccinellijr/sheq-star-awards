@@ -105,11 +105,14 @@ export const useSystemSettings = () => {
 
       if (error) throw error;
 
+      // Sync voting period with voting_periods table
+      await syncVotingPeriod(newSettings.voting_period);
+
       setSettings(newSettings);
       
       toast({
         title: "Sucesso",
-        description: "Todas as configurações foram salvas!",
+        description: "Todas as configurações foram salvas e período de votação sincronizado!",
       });
     } catch (error: any) {
       console.error('Error saving settings:', error);
@@ -118,6 +121,57 @@ export const useSystemSettings = () => {
         description: "Erro ao salvar configurações: " + error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const syncVotingPeriod = async (votingPeriod: SystemSettings['voting_period']) => {
+    try {
+      if (!votingPeriod.start_date || !votingPeriod.end_date) {
+        return; // Skip if dates are not set
+      }
+
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      
+      // First, deactivate all existing active periods
+      await supabase
+        .from('voting_periods')
+        .update({ is_active: false })
+        .eq('is_active', true);
+
+      // Check if period for current month exists
+      const { data: existingPeriod } = await supabase
+        .from('voting_periods')
+        .select('*')
+        .eq('month', currentMonth)
+        .single();
+
+      const periodData = {
+        month: currentMonth,
+        start_date: votingPeriod.start_date,
+        end_date: votingPeriod.end_date,
+        is_active: votingPeriod.is_active,
+        is_finalized: false
+      };
+
+      if (existingPeriod) {
+        // Update existing period
+        const { error } = await supabase
+          .from('voting_periods')
+          .update(periodData)
+          .eq('id', existingPeriod.id);
+
+        if (error) throw error;
+      } else {
+        // Create new period
+        const { error } = await supabase
+          .from('voting_periods')
+          .insert([periodData]);
+
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      console.error('Error syncing voting period:', error);
+      throw new Error('Erro ao sincronizar período de votação: ' + error.message);
     }
   };
 

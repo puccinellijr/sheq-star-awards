@@ -83,6 +83,33 @@ const AdminSettings = () => {
   const handleSave = async () => {
     if (!systemSettings) return;
     
+    // Validate voting dates
+    if (localSettings.votingStartDate && localSettings.votingEndDate) {
+      const startDate = new Date(localSettings.votingStartDate);
+      const endDate = new Date(localSettings.votingEndDate);
+      
+      if (startDate >= endDate) {
+        toast({
+          title: "Erro de validação",
+          description: "A data inicial deve ser anterior à data final.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Check if dates are in the current month
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      if (startDate.toISOString().slice(0, 7) !== currentMonth || 
+          endDate.toISOString().slice(0, 7) !== currentMonth) {
+        toast({
+          title: "Aviso",
+          description: "As datas configuradas devem estar dentro do mês atual para o período ser ativado.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     const updatedSettings = {
       voting_period: {
         start_date: localSettings.votingStartDate,

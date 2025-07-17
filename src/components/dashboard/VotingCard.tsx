@@ -84,6 +84,17 @@ export function VotingCard({ isVotingActive, hasVoted, votingPeriod, onVote }: V
           </div>
         )}
 
+        {!isVotingActive && !hasVoted && (
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-sm text-gray-800 font-medium">
+              ⏸️ Votação encerrada ou inativa
+            </p>
+            <p className="text-xs text-gray-600 mt-1">
+              Aguarde o próximo período de votação ser aberto.
+            </p>
+          </div>
+        )}
+
         <Button 
           onClick={onVote}
           disabled={!isVotingActive || hasVoted}

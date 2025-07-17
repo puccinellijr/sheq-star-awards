@@ -64,6 +64,37 @@ export function VotingForm({ collaborators, onSubmitVote, onCancel }: VotingForm
       return;
     }
 
+    // Verificar se todas as perguntas foram respondidas para funcionário
+    const funcionarioIncomplete = funcionarioAnswers.some(answer => answer === null || answer === undefined);
+    if (funcionarioIncomplete) {
+      toast({
+        variant: "destructive",
+        title: "Avaliação incompleta",
+        description: "Por favor, responda todas as 8 perguntas sobre o funcionário selecionado."
+      });
+      return;
+    }
+
+    // Verificar se todas as perguntas foram respondidas para terceirizado
+    const terceiroIncomplete = terceiroAnswers.some(answer => answer === null || answer === undefined);
+    if (terceiroIncomplete) {
+      toast({
+        variant: "destructive",
+        title: "Avaliação incompleta",
+        description: "Por favor, responda todas as 8 perguntas sobre o terceirizado selecionado."
+      });
+      return;
+    }
+
+    if (selectedFuncionario === selectedTerceiro) {
+      toast({
+        variant: "destructive",
+        title: "Seleção inválida",
+        description: "Você não pode votar na mesma pessoa para funcionário e terceirizado."
+      });
+      return;
+    }
+
     onSubmitVote({
       funcionario: {
         collaboratorId: selectedFuncionario,

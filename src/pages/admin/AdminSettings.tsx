@@ -7,10 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Mail, Calendar, Shield, Save } from "lucide-react";
+import { useVotingPeriods } from "@/hooks/useVotingPeriods";
+import { supabase } from "@/integrations/supabase/client";
+import { Settings, Mail, Calendar, Shield, Save, Send } from "lucide-react";
 
 export default function AdminSettings() {
   const { toast } = useToast();
+  const { getActivePeriod } = useVotingPeriods();
+  const [isLoadingNotification, setIsLoadingNotification] = useState(false);
+  const activePeriod = getActivePeriod();
   const [settings, setSettings] = useState({
     // Configurações de Votação
     votingEnabled: true,
@@ -45,6 +50,43 @@ export default function AdminSettings() {
 
   const updateSetting = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const sendNotification = async (type: 'voting_start' | 'voting_reminder' | 'voting_end') => {
+    if (!activePeriod) {
+      toast({
+        title: "Erro",
+        description: "Não há período de votação ativo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingNotification(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-notifications', {
+        body: {
+          type,
+          month: activePeriod.month
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Notificações enviadas!",
+        description: `E-mails de ${type} enviados com sucesso.`,
+      });
+    } catch (error: any) {
+      console.error('Error sending notifications:', error);
+      toast({
+        title: "Erro ao enviar notificações",
+        description: error.message || "Erro inesperado",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingNotification(false);
+    }
   };
 
   return (
@@ -188,6 +230,61 @@ export default function AdminSettings() {
               <p className="text-xs text-muted-foreground">
                 Use [NOME], [DATA_FIM] e [LINK] como variáveis
               </p>
+            </div>
+
+            {/* Envio Manual de Notificações */}
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base">Envio Manual de Notificações</Label>
+              {activePeriod ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800 font-medium">
+                      📅 Período ativo: {activePeriod.month}
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      De {activePeriod.startDate.toLocaleDateString('pt-BR')} até {activePeriod.endDate.toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <Button
+                      onClick={() => sendNotification('voting_start')}
+                      disabled={isLoadingNotification}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Início
+                    </Button>
+                    <Button
+                      onClick={() => sendNotification('voting_reminder')}
+                      disabled={isLoadingNotification}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Lembrete
+                    </Button>
+                    <Button
+                      onClick={() => sendNotification('voting_end')}
+                      disabled={isLoadingNotification}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Encerramento
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 text-center text-muted-foreground border rounded-lg">
+                  <Calendar className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Nenhum período ativo para notificações</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

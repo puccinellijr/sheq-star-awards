@@ -20,18 +20,24 @@ export default function AdminReports() {
   const { users, isLoading: usersLoading } = useUsers();
   const { periods: votingPeriods, isLoading: periodsLoading } = useVotingPeriods();
 
-  // Get available months from voting periods
+  // Get available months from voting periods (active and finalized)
   const availableMonths = useMemo(() => {
     return votingPeriods
-      .filter(period => period.isFinalized)
+      .filter(period => period.isActive || period.isFinalized)
       .map(period => ({
         value: period.month,
         label: new Date(period.month + '-01').toLocaleDateString('pt-BR', { 
           month: 'long', 
           year: 'numeric' 
-        })
+        }) + (period.isActive ? ' (Ativo)' : ' (Finalizado)'),
+        isActive: period.isActive
       }))
-      .sort((a, b) => b.value.localeCompare(a.value));
+      .sort((a, b) => {
+        // Prioritize active period first, then by date
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
+        return b.value.localeCompare(a.value);
+      });
   }, [votingPeriods]);
 
   // Set default month to the most recent available

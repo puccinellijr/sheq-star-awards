@@ -546,13 +546,14 @@ export default function AdminReports() {
                   {availableMonths.slice(0, 4).map((month) => {
                     const monthVotes = votes.filter(vote => vote.month === month.value);
                     const uniqueVoters = new Set(monthVotes.map(vote => vote.voterId));
-                    const monthParticipation = totalVotantes > 0 ? Math.round((uniqueVoters.size / totalVotantes) * 100) : 0;
+                    const totalVotantesForMonth = users.filter(user => user.role === 'gestor' || user.role === 'admin').length;
+                    const monthParticipation = totalVotantesForMonth > 0 ? Math.round((uniqueVoters.size / totalVotantesForMonth) * 100) : 0;
                     
                     return (
                       <div key={month.value} className="p-4 border rounded-lg">
                         <p className="font-semibold">{month.label}</p>
                         <p className="text-2xl font-bold text-primary">{monthParticipation}%</p>
-                        <p className="text-sm text-muted-foreground">{uniqueVoters.size}/{totalVotantes} votantes</p>
+                        <p className="text-sm text-muted-foreground">{uniqueVoters.size}/{totalVotantesForMonth} votantes</p>
                       </div>
                     );
                   })}

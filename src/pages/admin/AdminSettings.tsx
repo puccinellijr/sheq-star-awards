@@ -52,12 +52,7 @@ const AdminSettings = () => {
     
     // Email Template
     emailSubject: "Votação {{type}} - {{month}}",
-    emailContent: `Prezado(a) {{name}},
-
-Este é um lembrete sobre a votação do mês {{month}}.
-
-Atenciosamente,
-Equipe de Gestão`
+    emailContent: "Prezado(a) {{name}},\n\nEste é um lembrete sobre a votação do mês {{month}}.\n\nAtenciosamente,\nEquipe de Gestão"
   });
 
   useEffect(() => {

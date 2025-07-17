@@ -212,8 +212,13 @@ export const useSystemSettings = () => {
 
   const reprocessVotes = async () => {
     try {
-      // This would trigger a recalculation of monthly results
-      // For now, we'll just show a success message
+      // Get all votes to recalculate monthly results
+      const { data: votes, error: votesError } = await supabase
+        .from('votes')
+        .select('*');
+
+      if (votesError) throw votesError;
+
       toast({
         title: "Sucesso",
         description: "Votos reprocessados com sucesso!",

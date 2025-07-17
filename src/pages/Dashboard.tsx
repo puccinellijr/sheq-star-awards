@@ -16,7 +16,7 @@ import { LogOut } from "lucide-react";
 import { Vote, MonthlyResult } from "@/types";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { toast } = useToast();
   const { collaborators } = useCollaborators();
   const { votes, submitVote } = useVotes();
@@ -181,7 +181,7 @@ export default function Dashboard() {
                 <p className="font-medium">{user?.name}</p>
                 <p className="text-sm text-muted-foreground">{user?.department}</p>
               </div>
-              <Button variant="outline" onClick={() => window.location.href = '/auth'}>
+              <Button variant="outline" onClick={logout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair
               </Button>

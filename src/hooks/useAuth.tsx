@@ -24,36 +24,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          // Fetch user profile from our profiles table
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .single();
+        try {
+          setSession(session);
           
-          if (profile) {
-            setUser({
-              id: profile.user_id,
-              name: profile.name,
-              email: profile.email,
-              role: profile.role as 'admin' | 'gestor',
-              department: profile.department,
-              createdAt: new Date(profile.created_at)
-            });
+          if (session?.user) {
+            // Fetch user profile from our profiles table
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            if (error) {
+              console.error('Error fetching profile:', error);
+              setUser(null);
+            } else if (profile) {
+              setUser({
+                id: profile.user_id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as 'admin' | 'gestor',
+                department: profile.department,
+                createdAt: new Date(profile.created_at)
+              });
+            } else {
+              setUser(null);
+            }
+          } else {
+            setUser(null);
           }
-        } else {
+        } catch (error) {
+          console.error('Auth state change error:', error);
           setUser(null);
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       // onAuthStateChange will handle the session
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();

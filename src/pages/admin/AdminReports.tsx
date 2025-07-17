@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, Download, Calendar, Users, Trophy, TrendingUp, Calculator } from "lucide-react";
+import { BarChart3, Download, Calendar, Users, Trophy, TrendingUp, Calculator, CheckCircle, Clock, Mail } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useResults } from "@/hooks/useResults";
 import { useVotes } from "@/hooks/useVotes";
@@ -73,6 +73,29 @@ export default function AdminReports() {
 
   const pendingGestores = totalGestores - votedGestores;
   const participationRate = totalGestores > 0 ? Math.round((votedGestores / totalGestores) * 100) : 0;
+
+  // Calculate voting status for each manager
+  const managersVotingStatus = useMemo(() => {
+    const gestores = users.filter(user => user.role === 'gestor');
+    const voterIds = new Set(monthlyVotes.map(vote => vote.voterId));
+    
+    const voted = gestores
+      .filter(gestor => voterIds.has(gestor.id))
+      .map(gestor => {
+        const userVote = monthlyVotes.find(vote => vote.voterId === gestor.id);
+        return {
+          ...gestor,
+          voteDate: userVote?.createdAt
+        };
+      })
+      .sort((a, b) => new Date(b.voteDate).getTime() - new Date(a.voteDate).getTime());
+    
+    const pending = gestores
+      .filter(gestor => !voterIds.has(gestor.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    
+    return { voted, pending };
+  }, [users, monthlyVotes]);
 
   // Calculate rankings
   const rankings = useMemo(() => {
@@ -290,6 +313,96 @@ export default function AdminReports() {
             <CardContent>
               <div className="text-2xl font-bold text-accent-foreground">{participationRate}%</div>
               <p className="text-xs text-muted-foreground">dos gestores</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Status de Votação dos Gestores */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                <CardTitle>Gestores que Votaram</CardTitle>
+              </div>
+              <CardDescription>
+                {managersVotingStatus.voted.length} de {totalGestores} gestores já participaram
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {managersVotingStatus.voted.length > 0 ? (
+                  managersVotingStatus.voted.map((gestor) => (
+                    <div key={gestor.id} className="flex items-center justify-between p-3 border rounded-lg bg-primary/5">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                        <div>
+                          <p className="font-medium">{gestor.name}</p>
+                          <p className="text-sm text-muted-foreground">{gestor.department}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="default" className="mb-1">Votou</Badge>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(gestor.voteDate).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                    <p>Nenhum gestor votou ainda neste mês</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-destructive" />
+                <CardTitle>Gestores Pendentes</CardTitle>
+              </div>
+              <CardDescription>
+                {managersVotingStatus.pending.length} gestores ainda não votaram
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {managersVotingStatus.pending.length > 0 ? (
+                  managersVotingStatus.pending.map((gestor) => (
+                    <div key={gestor.id} className="flex items-center justify-between p-3 border rounded-lg bg-destructive/5">
+                      <div className="flex items-center gap-3">
+                        <Clock className="h-4 w-4 text-destructive" />
+                        <div>
+                          <p className="font-medium">{gestor.name}</p>
+                          <p className="text-sm text-muted-foreground">{gestor.department}</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex flex-col items-end gap-1">
+                        <Badge variant="destructive">Pendente</Badge>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span>{gestor.email}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-primary" />
+                    <p>Todos os gestores já votaram!</p>
+                    <p className="text-sm">Parabéns pela participação completa!</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

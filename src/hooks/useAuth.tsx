@@ -21,56 +21,96 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔐 Auth hook initializing...');
+    let isMounted = true;
+    
+    // Set loading timeout as safety fallback
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.log('⚠️ Auth loading timeout - forcing loading to false');
+        setIsLoading(false);
+      }
+    }, 10000); // 10 second timeout
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        try {
-          setSession(session);
-          
-          if (session?.user) {
-            // Fetch user profile from our profiles table
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
+      (event, session) => {
+        if (!isMounted) return;
+        
+        console.log('🔄 Auth state change:', event, session?.user?.id);
+        setSession(session);
+        
+        if (session?.user) {
+          // Defer profile fetch to avoid blocking auth state change
+          setTimeout(async () => {
+            if (!isMounted) return;
             
-            if (error) {
-              console.error('Error fetching profile:', error);
-              setUser(null);
-            } else if (profile) {
-              setUser({
-                id: profile.user_id,
-                name: profile.name,
-                email: profile.email,
-                role: profile.role as 'admin' | 'gestor',
-                department: profile.department,
-                createdAt: new Date(profile.created_at)
-              });
-            } else {
-              setUser(null);
+            try {
+              console.log('📥 Fetching profile for user:', session.user.id);
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+              
+              if (!isMounted) return;
+              
+              if (error) {
+                console.error('❌ Error fetching profile:', error);
+                setUser(null);
+              } else if (profile) {
+                console.log('✅ Profile found:', profile.email, profile.role);
+                setUser({
+                  id: profile.user_id,
+                  name: profile.name,
+                  email: profile.email,
+                  role: profile.role as 'admin' | 'gestor',
+                  department: profile.department,
+                  createdAt: new Date(profile.created_at)
+                });
+              } else {
+                console.log('⚠️ No profile found for user');
+                setUser(null);
+              }
+            } catch (error) {
+              console.error('❌ Profile fetch error:', error);
+              if (isMounted) setUser(null);
+            } finally {
+              if (isMounted) {
+                console.log('✅ Auth loading complete');
+                setIsLoading(false);
+                clearTimeout(loadingTimeout);
+              }
             }
-          } else {
-            setUser(null);
-          }
-        } catch (error) {
-          console.error('Auth state change error:', error);
+          }, 0);
+        } else {
+          console.log('🚪 No session - user logged out');
           setUser(null);
-        } finally {
           setIsLoading(false);
+          clearTimeout(loadingTimeout);
         }
       }
     );
 
-    // Check for existing session
+    // Check for existing session after setting up listener
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // onAuthStateChange will handle the session
+      if (!isMounted) return;
+      console.log('🔍 Initial session check:', session?.user?.id || 'No session');
+      // The onAuthStateChange listener will handle this session
     }).catch((error) => {
-      console.error('Error getting session:', error);
-      setIsLoading(false);
+      console.error('❌ Error getting initial session:', error);
+      if (isMounted) {
+        setIsLoading(false);
+        clearTimeout(loadingTimeout);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🧹 Auth hook cleanup');
+      isMounted = false;
+      clearTimeout(loadingTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

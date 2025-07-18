@@ -139,6 +139,35 @@ export function useVotes() {
     }
   };
 
+  const deleteVotesByMonth = async (month: string) => {
+    try {
+      const { error } = await supabase
+        .from('votes')
+        .delete()
+        .eq('month', month);
+
+      if (error) {
+        toast({
+          title: "Erro ao deletar votos",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Reload votes after deletion
+      await loadVotes();
+      return true;
+    } catch (error) {
+      toast({
+        title: "Erro ao deletar votos",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const getVotesByMonth = (month: string) => {
     return votes.filter(v => v.month === month);
   };
@@ -159,6 +188,7 @@ export function useVotes() {
     votes,
     isLoading,
     submitVote,
+    deleteVotesByMonth,
     getVotesByMonth,
     getVotesByCollaborator,
     hasUserVoted,

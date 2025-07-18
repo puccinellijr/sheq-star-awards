@@ -291,17 +291,28 @@ export const useSystemSettings = () => {
     try {
       const currentMonth = new Date().toISOString().slice(0, 7);
       
-      const { error } = await supabase
+      // Delete votes for current month
+      const { error: votesError } = await supabase
         .from('votes')
         .delete()
         .eq('month', currentMonth);
 
-      if (error) throw error;
+      if (votesError) throw votesError;
+
+      // Delete monthly results for current month
+      const { error: resultsError } = await supabase
+        .from('monthly_results')
+        .delete()
+        .eq('month', currentMonth);
+
+      if (resultsError) throw resultsError;
 
       toast({
         title: "Sucesso",
-        description: "Votação atual resetada com sucesso!",
+        description: "Votação atual resetada com sucesso! Votos e resultados foram removidos.",
       });
+
+      return true;
     } catch (error: any) {
       console.error('Error resetting voting:', error);
       toast({
@@ -309,6 +320,7 @@ export const useSystemSettings = () => {
         description: "Erro ao resetar votação: " + error.message,
         variant: "destructive",
       });
+      return false;
     }
   };
 

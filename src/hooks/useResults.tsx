@@ -68,6 +68,35 @@ export function useResults() {
     }
   };
 
+  const deleteResultByMonth = async (month: string) => {
+    try {
+      const { error } = await supabase
+        .from('monthly_results')
+        .delete()
+        .eq('month', month);
+
+      if (error) {
+        toast({
+          title: "Erro ao deletar resultados",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Reload results after deletion
+      await loadResults();
+      return true;
+    } catch (error) {
+      toast({
+        title: "Erro ao deletar resultados",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const calculateWinners = async (month: string) => {
     try {
       setIsLoading(true);
@@ -259,6 +288,7 @@ export function useResults() {
     results,
     isLoading,
     calculateWinners,
+    deleteResultByMonth,
     getResultByMonth,
     reload: loadResults
   };

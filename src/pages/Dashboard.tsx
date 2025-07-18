@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCollaborators } from "@/hooks/useCollaborators";
@@ -19,15 +20,16 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const { collaborators } = useCollaborators();
-  const { votes, submitVote } = useVotes();
+  const { votes, submitVote, reload: reloadVotes } = useVotes();
   const { getActivePeriod } = useVotingPeriods();
-  const { getResultByMonth } = useResults();
+  const { getResultByMonth, reload: reloadResults } = useResults();
   const { generateCertificate } = useCertificateGenerator();
   const [showVotingForm, setShowVotingForm] = useState(false);
   
   const activePeriod = getActivePeriod();
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-  const currentResult = getResultByMonth(activePeriod?.month || currentMonth);
+  const votingMonth = activePeriod?.month || currentMonth;
+  const currentResult = getResultByMonth(votingMonth);
   
   // Check if user has voted this month by looking for any vote from user in the active period
   const hasVoted = user && activePeriod ? 
@@ -35,6 +37,20 @@ export default function Dashboard() {
       v.voterId === user.id && 
       v.month === activePeriod.month
     ) : false;
+
+  // Get votes only for the current voting period/month
+  const currentVotes = votes.filter(v => v.month === votingMonth);
+  const uniqueVotersCount = new Set(currentVotes.map(v => v.voterId)).size;
+
+  // Only show statistics if there are actual votes for the current period
+  const shouldShowStatistics = currentVotes.length > 0 && activePeriod;
+
+  // Only show winners if there are results AND votes for the current period
+  const shouldShowWinners = currentResult && currentVotes.length > 0;
+
+  // Calculate days remaining
+  const daysRemaining = activePeriod ? 
+    Math.max(0, Math.ceil((activePeriod.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 
   const handleVote = async (voteData: {
     funcionario: { collaboratorId: string; answers: boolean[] };
@@ -92,6 +108,12 @@ export default function Dashboard() {
     generateCertificate(collaboratorId, type, month);
   };
 
+  // Refresh data when component mounts or when voting period changes
+  useEffect(() => {
+    reloadVotes();
+    reloadResults();
+  }, [activePeriod?.month]);
+
   if (showVotingForm) {
     return (
       <div className="min-h-screen bg-background p-4">
@@ -129,34 +151,34 @@ export default function Dashboard() {
               onVote={() => setShowVotingForm(true)}
             />
 
-            {/* Vencedores */}
+            {/* Vencedores - only show if there are valid results and votes */}
             <WinnersCard
-              currentResult={currentResult}
-              month={activePeriod?.month || currentMonth}
+              currentResult={shouldShowWinners ? currentResult : null}
+              month={votingMonth}
               onGenerateCertificate={handleGenerateCertificate}
             />
           </div>
 
-          {/* Estatísticas da Votação */}
-          {votes.length > 0 && (
+          {/* Estatísticas da Votação - only show if there are votes for current period */}
+          {shouldShowStatistics && (
             <div className="bg-card rounded-lg border p-6">
               <h3 className="text-lg font-semibold mb-4">Estatísticas da Votação Atual</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-primary/5 rounded-lg">
                   <p className="text-2xl font-bold text-primary">
-                    {votes.filter(v => v.month === currentMonth).length}
+                    {currentVotes.length}
                   </p>
                   <p className="text-sm text-muted-foreground">Total de Votos</p>
                 </div>
                 <div className="text-center p-4 bg-accent/5 rounded-lg">
                   <p className="text-2xl font-bold text-accent-foreground">
-                    {new Set(votes.filter(v => v.month === currentMonth).map(v => v.voterId)).size}
+                    {uniqueVotersCount}
                   </p>
                   <p className="text-sm text-muted-foreground">Gestores Votaram</p>
                 </div>
                 <div className="text-center p-4 bg-destructive/5 rounded-lg">
                   <p className="text-2xl font-bold text-destructive">
-                    {activePeriod ? Math.max(0, Math.ceil((activePeriod.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0}
+                    {daysRemaining}
                   </p>
                   <p className="text-sm text-muted-foreground">Dias Restantes</p>
                 </div>
@@ -204,10 +226,10 @@ export default function Dashboard() {
             onVote={() => setShowVotingForm(true)}
           />
 
-          {/* Vencedores */}
+          {/* Vencedores - only show if there are valid results and votes */}
           <WinnersCard
-            currentResult={currentResult}
-            month={activePeriod?.month || currentMonth}
+            currentResult={shouldShowWinners ? currentResult : null}
+            month={votingMonth}
             onGenerateCertificate={handleGenerateCertificate}
           />
         </div>

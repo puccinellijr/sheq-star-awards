@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCollaborators } from "@/hooks/useCollaborators";
@@ -42,11 +41,11 @@ export default function Dashboard() {
   const currentVotes = votes.filter(v => v.month === votingMonth);
   const uniqueVotersCount = new Set(currentVotes.map(v => v.voterId)).size;
 
-  // Only show statistics if there are actual votes for the current period
-  const shouldShowStatistics = currentVotes.length > 0 && activePeriod;
+  // Only show statistics if there are actual votes for the current period AND period is active
+  const shouldShowStatistics = currentVotes.length > 0 && activePeriod && activePeriod.isActive;
 
-  // Only show winners if there are results AND votes for the current period
-  const shouldShowWinners = currentResult && currentVotes.length > 0;
+  // Only show winners if there are results AND votes for the current period AND period is active
+  const shouldShowWinners = currentResult && currentVotes.length > 0 && activePeriod && activePeriod.isActive;
 
   // Calculate days remaining
   const daysRemaining = activePeriod ? 
@@ -108,11 +107,23 @@ export default function Dashboard() {
     generateCertificate(collaboratorId, type, month);
   };
 
-  // Refresh data when component mounts or when voting period changes
+  // Refresh data when component mounts, voting period changes, or when reset event occurs
   useEffect(() => {
     reloadVotes();
     reloadResults();
   }, [activePeriod?.month]);
+
+  // Listen for voting data reset events
+  useEffect(() => {
+    const handleVotingDataReset = () => {
+      console.log('Voting data reset event received, reloading data...');
+      reloadVotes();
+      reloadResults();
+    };
+
+    window.addEventListener('votingDataReset', handleVotingDataReset);
+    return () => window.removeEventListener('votingDataReset', handleVotingDataReset);
+  }, [reloadVotes, reloadResults]);
 
   if (showVotingForm) {
     return (
@@ -151,7 +162,7 @@ export default function Dashboard() {
               onVote={() => setShowVotingForm(true)}
             />
 
-            {/* Vencedores - only show if there are valid results and votes */}
+            {/* Vencedores - only show if there are valid results, votes, and active period */}
             <WinnersCard
               currentResult={shouldShowWinners ? currentResult : null}
               month={votingMonth}
@@ -159,7 +170,7 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Estatísticas da Votação - only show if there are votes for current period */}
+          {/* Estatísticas da Votação - only show if there are votes for current period and period is active */}
           {shouldShowStatistics && (
             <div className="bg-card rounded-lg border p-6">
               <h3 className="text-lg font-semibold mb-4">Estatísticas da Votação Atual</h3>
@@ -226,7 +237,7 @@ export default function Dashboard() {
             onVote={() => setShowVotingForm(true)}
           />
 
-          {/* Vencedores - only show if there are valid results and votes */}
+          {/* Vencedores - only show if there are valid results, votes, and active period */}
           <WinnersCard
             currentResult={shouldShowWinners ? currentResult : null}
             month={votingMonth}

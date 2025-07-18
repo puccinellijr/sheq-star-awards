@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MonthlyResult, Collaborator } from "@/types";
@@ -10,6 +11,15 @@ export function useResults() {
 
   useEffect(() => {
     loadResults();
+    
+    // Listen for voting data reset events
+    const handleVotingDataReset = () => {
+      console.log('Results hook: received reset event, reloading results...');
+      loadResults();
+    };
+
+    window.addEventListener('votingDataReset', handleVotingDataReset);
+    return () => window.removeEventListener('votingDataReset', handleVotingDataReset);
   }, []);
 
   const loadResults = async () => {

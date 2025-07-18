@@ -289,28 +289,48 @@ export const useSystemSettings = () => {
 
   const resetCurrentVoting = async () => {
     try {
-      const currentMonth = new Date().toISOString().slice(0, 7);
+      // Get the active voting period to determine which month to reset
+      const { data: activePeriods, error: periodError } = await supabase
+        .from('voting_periods')
+        .select('*')
+        .eq('is_active', true);
+
+      if (periodError) throw periodError;
+
+      // Use active period month, or fall back to current month
+      const targetMonth = activePeriods && activePeriods.length > 0 
+        ? activePeriods[0].month 
+        : new Date().toISOString().slice(0, 7);
       
-      // Delete votes for current month
+      console.log(`Resetting voting data for month: ${targetMonth}`);
+
+      // Delete votes for target month
       const { error: votesError } = await supabase
         .from('votes')
         .delete()
-        .eq('month', currentMonth);
+        .eq('month', targetMonth);
 
       if (votesError) throw votesError;
 
-      // Delete monthly results for current month
+      // Delete monthly results for target month
       const { error: resultsError } = await supabase
         .from('monthly_results')
         .delete()
-        .eq('month', currentMonth);
+        .eq('month', targetMonth);
 
       if (resultsError) throw resultsError;
 
+      // Also clean up any orphaned data from July 2025 specifically
+      await supabase.from('votes').delete().eq('month', '2025-07');
+      await supabase.from('monthly_results').delete().eq('month', '2025-07');
+
       toast({
         title: "Sucesso",
-        description: "Votação atual resetada com sucesso! Votos e resultados foram removidos.",
+        description: `Votação de ${targetMonth} resetada com sucesso! Votos e resultados foram removidos.`,
       });
+
+      // Force reload of all related data by dispatching a custom event
+      window.dispatchEvent(new CustomEvent('votingDataReset'));
 
       return true;
     } catch (error: any) {

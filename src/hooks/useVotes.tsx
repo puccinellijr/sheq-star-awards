@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Vote } from "@/types";
@@ -12,6 +13,15 @@ export function useVotes() {
 
   useEffect(() => {
     loadVotes();
+    
+    // Listen for voting data reset events
+    const handleVotingDataReset = () => {
+      console.log('Votes hook: received reset event, reloading votes...');
+      loadVotes();
+    };
+
+    window.addEventListener('votingDataReset', handleVotingDataReset);
+    return () => window.removeEventListener('votingDataReset', handleVotingDataReset);
   }, []);
 
   const loadVotes = async () => {

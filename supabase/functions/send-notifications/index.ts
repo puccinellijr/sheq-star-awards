@@ -157,8 +157,12 @@ const handler = async (req: Request): Promise<Response> => {
         break;
     }
 
-    // Send emails to all gestores using Nodemailer
-    const emailPromises = gestores.map(async (gestor) => {
+    // Send emails to all gestores using Nodemailer with delay
+    const results = [];
+    
+    for (let i = 0; i < gestores.length; i++) {
+      const gestor = gestores[i];
+      
       try {
         const mailOptions = {
           from: smtpConfig.username,
@@ -170,14 +174,17 @@ const handler = async (req: Request): Promise<Response> => {
         await transporter.sendMail(mailOptions);
         
         console.log(`Email sent successfully to ${gestor.email}`);
-        return { email: gestor.email, success: true };
+        results.push({ email: gestor.email, success: true });
       } catch (error) {
         console.error(`Failed to send email to ${gestor.email}:`, error);
-        return { email: gestor.email, success: false, error: error.message };
+        results.push({ email: gestor.email, success: false, error: error.message });
       }
-    });
 
-    const results = await Promise.all(emailPromises);
+      // Add delay between emails (except for the last one)
+      if (i < gestores.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 second delay
+      }
+    }
     const successful = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
 

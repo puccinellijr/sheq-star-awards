@@ -89,10 +89,11 @@ export function useUsers() {
   const deleteUser = async (id: string) => {
     try {
       // Note: This will also delete from auth.users due to foreign key constraints
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('profiles')
         .delete()
-        .eq('user_id', id);
+        .eq('user_id', id)
+        .select();
 
       if (error) {
         toast({
@@ -100,21 +101,35 @@ export function useUsers() {
           description: error.message,
           variant: "destructive",
         });
-        return;
+        return false;
       }
 
+      // Check if any rows were actually deleted
+      if (!data || data.length === 0) {
+        toast({
+          title: "Erro ao excluir usuário",
+          description: "Usuário não encontrado ou você não tem permissão para excluí-lo.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Only update local state if deletion was successful
       setUsers(prev => prev.filter(u => u.id !== id));
       
       toast({
         title: "Usuário excluído",
         description: "Usuário removido com sucesso.",
       });
+      
+      return true;
     } catch (error) {
       toast({
         title: "Erro ao excluir usuário",
         description: "Erro inesperado",
         variant: "destructive",
       });
+      return false;
     }
   };
 

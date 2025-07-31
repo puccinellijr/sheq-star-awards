@@ -16,9 +16,9 @@ const supabase = createClient(
 const smtpConfig = {
   hostname: "smtp.office365.com",
   port: 587,
-  username: Deno.env.get('SMTP_USERNAME') || 'alerta.rg@odfjellterminals.com.br',
-  password: Deno.env.get('SMTP_PASSWORD') || 'Sov94408',
-  secure: false, // STARTTLS
+  username: Deno.env.get('SMTP_USERNAME'),
+  password: Deno.env.get('SMTP_PASSWORD'),
+  tls: true,
 };
 
 interface NotificationRequest {
@@ -154,9 +154,8 @@ const handler = async (req: Request): Promise<Response> => {
         
         await client.send({
           from: smtpConfig.username,
-          to: gestor.email,
+          to: [gestor.email],
           subject,
-          content: htmlContent,
           html: htmlContent,
         });
         

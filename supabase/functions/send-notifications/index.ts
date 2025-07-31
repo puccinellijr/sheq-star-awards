@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0';
-import { Resend } from "npm:resend@2.0.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +12,14 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+// SMTP Configuration for Office365
+const smtpConfig = {
+  hostname: "smtp.office365.com",
+  port: 587,
+  username: Deno.env.get('SMTP_USERNAME') || 'alerta.rg@odfjellterminals.com.br',
+  password: Deno.env.get('SMTP_PASSWORD') || 'Sov94408',
+  secure: false, // STARTTLS
+};
 
 interface NotificationRequest {
   type: 'voting_start' | 'voting_reminder' | 'voting_end';
@@ -140,16 +147,23 @@ const handler = async (req: Request): Promise<Response> => {
         break;
     }
 
-    // Send emails to all gestores
+    // Send emails to all gestores using SMTP
     const emailPromises = gestores.map(async (gestor) => {
       try {
-        const result = await resend.emails.send({
-          from: 'Destaque SHEQ <noreply@odfjell.com>',
+        const client = new SMTPClient(smtpConfig);
+        
+        await client.send({
+          from: smtpConfig.username,
           to: gestor.email,
           subject,
+          content: htmlContent,
           html: htmlContent,
         });
-        return { email: gestor.email, success: true, result };
+        
+        await client.close();
+        
+        console.log(`Email sent successfully to ${gestor.email}`);
+        return { email: gestor.email, success: true };
       } catch (error) {
         console.error(`Failed to send email to ${gestor.email}:`, error);
         return { email: gestor.email, success: false, error: error.message };

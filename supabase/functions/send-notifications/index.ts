@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.0.0';
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createTransport } from "npm:nodemailer@6.9.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,10 +16,20 @@ const supabase = createClient(
 const smtpConfig = {
   hostname: "smtp.office365.com",
   port: 587,
-  username: Deno.env.get('SMTP_USERNAME'),
-  password: Deno.env.get('SMTP_PASSWORD'),
-  tls: true,
+  username: Deno.env.get('SMTP_USERNAME') || 'alerta.rg@odfjellterminals.com.br',
+  password: Deno.env.get('SMTP_PASSWORD') || 'Sov94408',
+  secure: false, // STARTTLS
 };
+
+const transporter = createTransport({
+  host: smtpConfig.hostname,
+  port: smtpConfig.port,
+  secure: smtpConfig.secure,
+  auth: {
+    user: smtpConfig.username,
+    pass: smtpConfig.password,
+  },
+});
 
 interface NotificationRequest {
   type: 'voting_start' | 'voting_reminder' | 'voting_end';
@@ -147,19 +157,17 @@ const handler = async (req: Request): Promise<Response> => {
         break;
     }
 
-    // Send emails to all gestores using SMTP
+    // Send emails to all gestores using Nodemailer
     const emailPromises = gestores.map(async (gestor) => {
       try {
-        const client = new SMTPClient(smtpConfig);
-        
-        await client.send({
+        const mailOptions = {
           from: smtpConfig.username,
-          to: [gestor.email],
+          to: gestor.email,
           subject,
           html: htmlContent,
-        });
-        
-        await client.close();
+        };
+
+        await transporter.sendMail(mailOptions);
         
         console.log(`Email sent successfully to ${gestor.email}`);
         return { email: gestor.email, success: true };

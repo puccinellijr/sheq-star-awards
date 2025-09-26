@@ -13,7 +13,7 @@ import { Plus, Search, Edit, Trash2, Users, Shield } from "lucide-react";
 import { User } from "@/types";
 
 export default function AdminUsers() {
-  const { users, isLoading, createUser, updateUser, deleteUser } = useUsers();
+  const { users, isLoading, createUser, updateUser, updateUserPassword, deleteUser } = useUsers();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<"all" | "admin" | "gestor">("all");
@@ -60,9 +60,30 @@ export default function AdminUsers() {
       return;
     }
 
-    // Verificação específica para novos usuários
+    // Verificação de senha para novos usuários
     if (!editingUser) {
       if (!formData.password || formData.password.length < 6) {
+        toast({
+          title: "Erro",
+          description: "Senha deve ter pelo menos 6 caracteres.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        toast({
+          title: "Erro",
+          description: "As senhas não coincidem.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    // Verificação de senha para edição (se fornecida)
+    if (editingUser && formData.password) {
+      if (formData.password.length < 6) {
         toast({
           title: "Erro",
           description: "Senha deve ter pelo menos 6 caracteres.",
@@ -96,12 +117,19 @@ export default function AdminUsers() {
     }
 
     if (editingUser) {
+      // Atualizar dados do perfil
       await updateUser(editingUser.id, {
         name: formData.name,
         email: formData.email,
         role: formData.role,
         department: formData.department
       });
+
+      // Atualizar senha se fornecida
+      if (formData.password) {
+        const passwordUpdated = await updateUserPassword(editingUser.id, formData.password);
+        if (!passwordUpdated) return;
+      }
     } else {
       const success = await createUser({
         name: formData.name,
@@ -217,35 +245,35 @@ export default function AdminUsers() {
                     />
                   </div>
                   
-                  {!editingUser && (
-                    <>
-                      <div className="grid gap-2">
-                        <Label htmlFor="password">Senha</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={formData.password}
-                          onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                          placeholder="Digite a senha"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                        <Input
-                          id="confirmPassword"
-                          type="password"
-                          value={formData.confirmPassword}
-                          onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                          placeholder="Confirme a senha"
-                          required
-                          minLength={6}
-                        />
-                      </div>
-                    </>
-                  )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="password">
+                      {editingUser ? "Nova Senha (opcional)" : "Senha"}
+                    </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder={editingUser ? "Deixe em branco para manter a senha atual" : "Digite a senha"}
+                      required={!editingUser}
+                      minLength={6}
+                    />
+                  </div>
+                  
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">
+                      {editingUser ? "Confirmar Nova Senha" : "Confirmar Senha"}
+                    </Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder={editingUser ? "Confirme a nova senha" : "Confirme a senha"}
+                      required={!editingUser}
+                      minLength={6}
+                    />
+                  </div>
                   
                   <div className="grid gap-2">
                     <Label htmlFor="role">Função</Label>

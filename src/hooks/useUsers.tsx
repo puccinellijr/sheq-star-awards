@@ -86,6 +86,37 @@ export function useUsers() {
     }
   };
 
+  const updateUserPassword = async (id: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.admin.updateUserById(id, {
+        password: password
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao alterar senha",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      toast({
+        title: "Senha alterada",
+        description: "Senha atualizada com sucesso.",
+      });
+      
+      return true;
+    } catch (error) {
+      toast({
+        title: "Erro ao alterar senha",
+        description: "Erro inesperado",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const deleteUser = async (id: string) => {
     try {
       // Note: This will also delete from auth.users due to foreign key constraints
@@ -194,6 +225,7 @@ export function useUsers() {
     isLoading,
     createUser,
     updateUser,
+    updateUserPassword,
     deleteUser,
     getUsersByRole,
     reload: loadUsers
